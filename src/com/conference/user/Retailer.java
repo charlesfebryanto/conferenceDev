@@ -38,7 +38,7 @@ public class Retailer extends Visitor {
     private ComboBox<String> searchType;
     private Label companyId, companyName,  productId, productName, price, stock, search;
     private TextField productIdField, productNameField, priceField, stockField, searchField;
-    private Button addProductButton, editProductButton, deleteProductButton, searchProductButton;
+    private Button addProductButton, saveProductButton, editProductButton, deleteProductButton, searchProductButton;
 
 //    private companyId
     public Retailer(int userId, String firstName, String lastName, String gender, String contactNumber, String address, Date dob, int position) {
@@ -73,7 +73,7 @@ public class Retailer extends Visitor {
         layout.setTop(menuBar);
 
         Scene scene = new Scene(layout, 800, 480);
-        stage.setTitle("Login As : Retailer");
+        stage.setTitle("Login As : Retailer | Company : " + company.getCompanyId());
         stage.setScene(scene);
     }
 
@@ -180,13 +180,18 @@ public class Retailer extends Visitor {
         addProductButton.setOnAction(e -> addProduct());
         addProductButton.setPrefWidth(150);
 
+        saveProductButton = new Button("Save Product");
+        GridPane.setConstraints(saveProductButton, 2, 4);
+        saveProductButton.setOnAction(e -> saveProduct());
+        saveProductButton.setPrefWidth(150);
+
         editProductButton = new Button("Edit Product");
-        GridPane.setConstraints(editProductButton, 2, 4);
+        GridPane.setConstraints(editProductButton, 3, 4);
         editProductButton.setPrefWidth(150);
-        editProductButton.setOnAction(e -> Platform.runLater(() ->productTable.getSelectionModel().clearSelection()));
+        editProductButton.setOnAction(e -> editProduct());
 
         deleteProductButton = new Button("Delete Product");
-        GridPane.setConstraints(deleteProductButton, 3, 4);
+        GridPane.setConstraints(deleteProductButton, 4, 4);
         deleteProductButton.setOnAction(e -> deleteProduct());
         deleteProductButton.setPrefWidth(150);
 
@@ -198,10 +203,10 @@ public class Retailer extends Visitor {
         searchField = new TextField();
         searchField.setPromptText("Insert Something");
         searchField.setPrefWidth(200);
+        searchField.textProperty().addListener(e -> searchProduct());
 
-        ComboBox<String> searchType = new ComboBox<>();
+        searchType = new ComboBox<>();
         searchType.getItems().addAll("ProductID", "Name");
-//        searchType.setValue("Name");
         searchType.getSelectionModel().select(1);
         searchProductButton = new Button("Search");
         searchProductButton.setOnAction(e -> searchProduct());
@@ -229,24 +234,23 @@ public class Retailer extends Visitor {
 
         productTable = new TableView<>();
         productTable.setItems(getProducts());
-        productTable.getSelectionModel().selectedItemProperty().addListener((v, oldV, newV) -> {
+        productTable.getSelectionModel().selectedItemProperty().addListener((value, oldValue, newValue) -> {
             // if the newValue not null -> get the value and set to the field
                 // if the newValue is null -> do nothing, dont get the value from the previous selected
                 // otherwise it will give the null pointer exception
-            if(newV != null) {
+            if(newValue != null) {
                 productIdField.setText(productTable.getSelectionModel().getSelectedItem().getProductId());
+                productIdField.setDisable(true);
                 productNameField.setText(productTable.getSelectionModel().getSelectedItem().getName());
                 priceField.setText(productTable.getSelectionModel().getSelectedItem().getPrice() + "");
                 stockField.setText(productTable.getSelectionModel().getSelectedItem().getStock() + "");
             }
         });
 
-        productTable.minWidth(480);
         productTable.getColumns().addAll(productIdColumn, productNameColumn, priceColumn, stockColumn);
 
-
         GridPane.setConstraints(productTable, 0, 6, 4, 1);
-        body.getChildren().addAll(productName, price, stock, productId, addProductButton,
+        body.getChildren().addAll(productName, price, stock, productId, addProductButton, saveProductButton,
                 editProductButton, deleteProductButton,
                 searchContainer,
                 productTable);
@@ -255,28 +259,98 @@ public class Retailer extends Visitor {
 //        body.getColumnConstraints().add(new ColumnConstraints(150));
 //        body.getColumnConstraints().add(new ColumnConstraints(150));
 //        body.getColumnConstraints().add(new ColumnConstraints(150));
-
         return body;
     }
 
+    public void addProduct() {
+            productIdField.setDisable(false);
+            productIdField.clear();
+            productNameField.clear();
+            priceField.clear();
+            stockField.clear();
+    }
+
+    public void editProduct() {
+        try {
+            cn = MySqlConnect.connectDB();
+            String sql = "UPDATE product set name = ?, price = ?, stock = ? WHERE productId = ?";
+            pst = cn.prepareStatement(sql);
+            pst.setString(1, productNameField.getText());
+            pst.setDouble(2, Double.parseDouble(priceField.getText()));
+            pst.setInt(3, Integer.parseInt(stockField.getText()));
+            pst.setString(4, productIdField.getText());
+            pst.executeUpdate();
+            DialogBox.alertBox("Success", "Product " + productIdField.getText() + " Updated");
+            addProduct();
+            productTable.setItems(getProducts());
+        } catch (SQLException e) {
+            DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
+        } catch (Exception e) {
+            DialogBox.alertBox("Warning", e + "");
+        } finally {
+            try {
+                if(rs != null) {
+                    rs.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "rs");
+            }
+            try {
+                if(st != null) {
+                    st.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "st");
+            }
+            try {
+                if(pst != null) {
+                    pst.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "st");
+            }
+            try {
+                if(cn != null) {
+                    cn.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "cn");
+            }
+        }
+    }
     public void deleteProduct() {
         try {
             cn = MySqlConnect.connectDB();
-            String sqlOwn = "DELETE FROM own WHERE productId = ? AND companyId = ?";
-            pst = cn.prepareStatement(sqlOwn);
+            String sqlCount = "SELECT COUNT(have.productId) FROM have WHERE have.productId = ?";
+            pst = cn.prepareStatement(sqlCount);
             pst.setString(1, productIdField.getText());
-            pst.setString(2, company.getCompanyId());
-            pst.executeUpdate();
+            rs = pst.executeQuery();
 
-            String sqlProduct = "DELETE FROM product WHERE productId = ?";
-            pst = cn.prepareStatement(sqlProduct);
-            pst.setString(1, productIdField.getText());
-            pst.executeUpdate();
+            if(rs.next()) {
+                if (rs.getInt(1) > 0) {
+                    DialogBox.alertBox("Warning", "Cannot delete " + productNameField.getText() + ", Product already have a record.");
+                } else {
 
-            // set the items on productTable view using getProducts method to get the current data from database
-            productTable.setItems(getProducts());
-            DialogBox.alertBox("Success", productNameField.getText() + " Deleted Successfully");
-        } catch (Exception e) {
+                    String sqlOwn = "DELETE FROM own WHERE productId = ? AND companyId = ?";
+                    pst = cn.prepareStatement(sqlOwn);
+                    pst.setString(1, productIdField.getText());
+                    pst.setString(2, company.getCompanyId());
+                    pst.executeUpdate();
+
+                    String sqlProduct = "DELETE FROM product WHERE productId = ?";
+                    pst = cn.prepareStatement(sqlProduct);
+                    pst.setString(1, productIdField.getText());
+                    pst.executeUpdate();
+
+                    // set the items on productTable view using getProducts method to get the current data from database
+                    DialogBox.alertBox("Success", productNameField.getText() + " Deleted Successfully");
+                    addProduct();
+                    productTable.setItems(getProducts());
+                }
+            }
+        } catch (SQLException e) {
+            DialogBox.alertBox("Warning", e.getErrorCode() + " :" + e.getMessage());
+        } catch(Exception e) {
             DialogBox.alertBox("Warning", e + "");
         } finally {
             try {
@@ -313,25 +387,67 @@ public class Retailer extends Visitor {
     public void searchProduct() {
         products = FXCollections.observableArrayList();
         try {
+            String sql;
             cn = MySqlConnect.connectDB();
-            String sql = "SELECT * FROM product, company, own WHERE product.productId = own.productId AND own.companyId = company.companyId AND company.companyId = '" + company.getCompanyId() + "' AND product.Name LIKE '%e%'";
-            pst = cn.prepareStatement(sql);
-//            pst.setString(1, "name");
-//            pst.setString(2, "'%" + searchField.getText() + "%'");
-            rs = pst.executeQuery();
+            if(searchType.getSelectionModel().getSelectedItem() == "Name") {
+                sql = "SELECT * FROM product, company, own WHERE product.productId = own.productId AND own.companyId = company.companyId AND company.companyId = ? AND product.name LIKE ?";
+            } else {
+                sql = "SELECT * FROM product, company, own WHERE product.productId = own.productId AND own.companyId = company.companyId AND company.companyId = ? AND product.productid LIKE ?";
+            }
+                //            if(searchType.getSelectionModel().getSelectedItem() == "productID") {}
+//                sql = "SELECT * FROM product, company, own WHERE product.productId = own.productId AND own.companyId = company.companyId AND company.companyId = ? AND product.productid LIKE ?";
+//            }
+                pst = cn.prepareStatement(sql);
+//            pst.setString(2, searchType.getSelectionModel().getSelectedItem());
+                pst.setString(1, company.getCompanyId());
+                pst.setString(2, "%" + searchField.getText() + "%");
+                rs = pst.executeQuery();
 
 //            int i = 0;
+//            }
             while(rs.next()) {
                 products.add(new Product(rs.getString(1), rs.getString(2), rs.getDouble(3), rs.getInt(4)));
 //                selectionBox.getItems().add(lectures.get(i).getLectureId() + " - " + lectures.get(i).getTitle());
 //                i++;
             }
             productTable.setItems(products);
+        } catch (SQLException e) {
+            DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
         } catch (Exception e) {
             DialogBox.alertBox("Warning", e + "");
+        } finally {
+            try {
+                if(rs != null) {
+                    rs.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "rs");
+            }
+            try {
+                if(st != null) {
+                    st.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "st");
+            }
+            try {
+                if(pst != null) {
+                    pst.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "st");
+            }
+            try {
+                if(cn != null) {
+                    cn.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "cn");
+            }
         }
     }
-    public void addProduct() {
+
+    public void saveProduct() {
         try {
             cn = MySqlConnect.connectDB();
             String sqlProduct = "INSERT INTO product VALUES(?, ?, ?, ?)";
@@ -347,8 +463,9 @@ public class Retailer extends Visitor {
             pst.setString(1, company.getCompanyId());
             pst.setString(2, productIdField.getText());
             pst.executeUpdate();
-            productTable.setItems(getProducts());
             DialogBox.alertBox("Success", productNameField.getText() + " Inserted Successfuly");
+            addProduct();
+            productTable.setItems(getProducts());
         } catch (Exception e) {
             DialogBox.alertBox("Warning", e + "");
         } finally {
