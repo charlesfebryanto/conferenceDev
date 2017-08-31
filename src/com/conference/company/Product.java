@@ -1,4 +1,4 @@
-package com.conference;
+package com.conference.company;
 
 public class Product {
     private String productId;

@@ -1,16 +1,14 @@
 package com.conference.company;
 
-public class Booth {
+public class Company {
     private String companyId;
     private String name;
-    private String type;
 
-
-    public Booth(String companyId, String name, String type) {
+    public Company(String companyId, String name) {
         this.companyId = companyId;
         this.name = name;
-        this.type = "Booth";
     }
+
 
     public String getCompanyId() {
         return companyId;
@@ -26,13 +24,5 @@ public class Booth {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
     }
 }

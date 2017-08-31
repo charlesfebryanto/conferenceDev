@@ -1,6 +1,6 @@
 package com.conference.user;
 
-import com.conference.Company;
+import com.conference.company.Company;
 import com.conference.DialogBox;
 import com.conference.Lecture;
 import com.conference.MySqlConnect;
@@ -401,7 +401,10 @@ public class Receptionist extends Visitor {
             lectures = FXCollections.observableArrayList();
             try {
                 cn = MySqlConnect.connectDB();
-                String sql = "SELECT lecture.lectureId, lecture.title, room.roomId, lecture.date FROM lecture, room, occupy WHERE lecture.lectureId = occupy.lectureId && occupy.roomId = room.roomId";
+                String sql = "SELECT lecture.lectureId, lecture.title, room.roomId, lecture.date " +
+                        "FROM lecture, room, occupy " +
+                        "WHERE lecture.lectureId = occupy.lectureId " +
+                        "AND occupy.roomId = room.roomId";
 
                 st = cn.createStatement();
                 rs = st.executeQuery(sql);

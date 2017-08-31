@@ -62,4 +62,12 @@ public class DialogBox {
             Platform.runLater(() -> textAreaName.clear());
         }
     }
+
+    public static void lengthCheck(TextField textField, int maxLength, String alertTitle, String alertMessage) {
+        if(textField.getText().length() > maxLength) {
+            DialogBox.alertBox(alertTitle, alertMessage);
+            Platform.runLater(() -> textField.clear());
+        }
+    }
+
 }

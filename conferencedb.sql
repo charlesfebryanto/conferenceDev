@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Aug 29, 2017 at 11:55 AM
+-- Generation Time: Aug 31, 2017 at 12:03 PM
 -- Server version: 10.1.25-MariaDB
 -- PHP Version: 7.1.7
 
@@ -69,18 +69,9 @@ INSERT INTO `company` (`companyId`, `name`) VALUES
 --
 
 CREATE TABLE `do` (
-  `memberId` varchar(20) DEFAULT NULL,
-  `transactionId` varchar(20) NOT NULL
+  `transactionId` int(11) NOT NULL,
+  `memberId` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
---
--- Dumping data for table `do`
---
-
-INSERT INTO `do` (`memberId`, `transactionId`) VALUES
-('1234567', 'T001'),
-('1234567', 'T003'),
-('1234568', 'T002');
 
 -- --------------------------------------------------------
 
@@ -109,21 +100,10 @@ INSERT INTO `engage` (`memberId`, `companyId`) VALUES
 --
 
 CREATE TABLE `have` (
-  `transactionId` varchar(20) NOT NULL,
+  `transactionId` int(11) NOT NULL,
   `productId` varchar(20) NOT NULL,
   `quantity` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
---
--- Dumping data for table `have`
---
-
-INSERT INTO `have` (`transactionId`, `productId`, `quantity`) VALUES
-('T001', 'P001', 1),
-('T001', 'P002', 1),
-('T002', 'P001', 1),
-('T002', 'P002', 2),
-('T003', 'P001', 1);
 
 -- --------------------------------------------------------
 
@@ -168,6 +148,7 @@ CREATE TABLE `member` (
 --
 
 INSERT INTO `member` (`memberId`, `firstname`, `lastname`, `gender`, `contactno`, `address`, `dob`, `position`) VALUES
+('1231212', 'asd', 'asd', 'M', '123', 'iqwjeoj jnsdjkd		', '2017-08-02', 0),
 ('1234565', 'Dummy', 'Dummy', 'M', '123', 'Dummy', '2017-08-08', 2),
 ('1234567', 'Dummy', 'Dummy', 'M', '123', 'Dummy', '2017-08-08', 0),
 ('1234568', 'Dummy', 'Dummy', 'M', '123', 'Dummy', '2017-08-08', 1),
@@ -209,9 +190,10 @@ CREATE TABLE `own` (
 --
 
 INSERT INTO `own` (`companyId`, `productId`) VALUES
-('C001', 'P001'),
-('C001', 'P002'),
-('C002', 'P001');
+('C001', '1283781273812937'),
+('C001', '1923109238'),
+('C002', '129381293'),
+('C002', '192319238');
 
 -- --------------------------------------------------------
 
@@ -231,8 +213,10 @@ CREATE TABLE `product` (
 --
 
 INSERT INTO `product` (`productId`, `name`, `price`, `stock`) VALUES
-('P001', 'Coca-cola', 5, 50),
-('P002', 'Fanta', 5, 50);
+('1283781273812937', 'Fanta Bottle', 5, 100),
+('129381293', 'Coke Can', 5, 10),
+('1923109238', 'Coke Bottle', 5, 100),
+('192319238', 'Fanta Can', 5, 10);
 
 -- --------------------------------------------------------
 
@@ -261,19 +245,10 @@ INSERT INTO `room` (`roomId`, `description`, `seat`) VALUES
 --
 
 CREATE TABLE `transaction` (
-  `transactionId` varchar(20) NOT NULL,
+  `transactionId` int(11) NOT NULL,
   `total` double DEFAULT NULL,
   `date` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
---
--- Dumping data for table `transaction`
---
-
-INSERT INTO `transaction` (`transactionId`, `total`, `date`) VALUES
-('T001', 10, '2017-08-28'),
-('T002', 15, '2017-08-28'),
-('T003', 5, '2017-08-28');
 
 -- --------------------------------------------------------
 
@@ -384,6 +359,15 @@ ALTER TABLE `work`
   ADD KEY `companyId` (`companyId`);
 
 --
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `transaction`
+--
+ALTER TABLE `transaction`
+  MODIFY `transactionId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+--
 -- Constraints for dumped tables
 --
 
@@ -398,8 +382,8 @@ ALTER TABLE `attend`
 -- Constraints for table `do`
 --
 ALTER TABLE `do`
-  ADD CONSTRAINT `do_ibfk_1` FOREIGN KEY (`memberId`) REFERENCES `member` (`memberId`),
-  ADD CONSTRAINT `do_ibfk_2` FOREIGN KEY (`transactionId`) REFERENCES `transaction` (`transactionId`);
+  ADD CONSTRAINT `do_ibfk_1` FOREIGN KEY (`transactionId`) REFERENCES `transaction` (`transactionId`),
+  ADD CONSTRAINT `do_ibfk_2` FOREIGN KEY (`memberId`) REFERENCES `member` (`memberId`);
 
 --
 -- Constraints for table `engage`
