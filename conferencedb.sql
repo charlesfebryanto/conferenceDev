@@ -2,8 +2,8 @@
 -- version 4.7.0
 -- https://www.phpmyadmin.net/
 --
--- Host: localhost
--- Generation Time: Aug 31, 2017 at 12:03 PM
+-- Host: 127.0.0.1
+-- Generation Time: Aug 31, 2017 at 07:31 PM
 -- Server version: 10.1.25-MariaDB
 -- PHP Version: 7.1.7
 
@@ -69,7 +69,7 @@ INSERT INTO `company` (`companyId`, `name`) VALUES
 --
 
 CREATE TABLE `do` (
-  `transactionId` int(11) NOT NULL,
+  `transactionId` varchar(20) NOT NULL,
   `memberId` varchar(20) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
@@ -100,7 +100,7 @@ INSERT INTO `engage` (`memberId`, `companyId`) VALUES
 --
 
 CREATE TABLE `have` (
-  `transactionId` int(11) NOT NULL,
+  `transactionId` varchar(20) NOT NULL,
   `productId` varchar(20) NOT NULL,
   `quantity` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -190,7 +190,7 @@ CREATE TABLE `own` (
 --
 
 INSERT INTO `own` (`companyId`, `productId`) VALUES
-('C001', '1283781273812937'),
+('C001', '18237981732'),
 ('C001', '1923109238'),
 ('C002', '129381293'),
 ('C002', '192319238');
@@ -213,9 +213,9 @@ CREATE TABLE `product` (
 --
 
 INSERT INTO `product` (`productId`, `name`, `price`, `stock`) VALUES
-('1283781273812937', 'Fanta Bottle', 5, 100),
-('129381293', 'Coke Can', 5, 10),
-('1923109238', 'Coke Bottle', 5, 100),
+('129381293', 'Coke Can', 5, 9),
+('18237981732', 'Fanta Bottle', 5, 1),
+('1923109238', 'Coke Bottle', 5, 93),
 ('192319238', 'Fanta Can', 5, 10);
 
 -- --------------------------------------------------------
@@ -245,7 +245,7 @@ INSERT INTO `room` (`roomId`, `description`, `seat`) VALUES
 --
 
 CREATE TABLE `transaction` (
-  `transactionId` int(11) NOT NULL,
+  `transactionId` varchar(20) NOT NULL,
   `total` double DEFAULT NULL,
   `date` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -358,15 +358,6 @@ ALTER TABLE `work`
   ADD PRIMARY KEY (`memberId`),
   ADD KEY `companyId` (`companyId`);
 
---
--- AUTO_INCREMENT for dumped tables
---
-
---
--- AUTO_INCREMENT for table `transaction`
---
-ALTER TABLE `transaction`
-  MODIFY `transactionId` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 --
 -- Constraints for dumped tables
 --

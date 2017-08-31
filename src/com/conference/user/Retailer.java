@@ -17,7 +17,11 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 import static com.conference.Conference.loginScene;
 //import java.util.Date;
@@ -37,7 +41,7 @@ public class Retailer extends Visitor {
     private TextField productIdField, productNameField, priceField, stockField, searchField,
             scanProductField, scanIdField;
     private Button addProductButton, saveProductButton, editProductButton, deleteProductButton, searchProductButton,
-            scanProductButton;
+            scanProductButton, deleteSellButton, substractSellButton, transactionButton;
 
     private double totalCount;
 
@@ -155,7 +159,7 @@ public class Retailer extends Visitor {
         body.setPadding(new Insets(10));
 
         transactionDate = new Label();
-        GridPane.setConstraints(transactionDate, 3, 0);
+        GridPane.setConstraints(transactionDate, 4, 0);
         transactionDate.setText(LocalDate.now() + "");
 
         scanProduct = new Label("Scan Product : ");
@@ -167,9 +171,12 @@ public class Retailer extends Visitor {
 
         scanProductButton = new Button("Add");
         GridPane.setConstraints(scanProductButton, 2, 0);
-        scanProductButton.setOnAction(e -> {
-            addSelling();
-        });
+        scanProductButton.setOnAction(e -> addSelling());
+
+        substractSellButton = new Button("Substract");
+        GridPane.setConstraints(substractSellButton, 3, 0);
+        substractSellButton.setDisable(true);
+        substractSellButton.setOnAction(e -> substractSelling());
 
         scanId = new Label("Scan ID : ");
         GridPane.setConstraints(scanId, 0, 1);
@@ -178,8 +185,18 @@ public class Retailer extends Visitor {
         scanIdField.setPromptText("Scan Customer ID");
         GridPane.setConstraints(scanIdField, 1, 1);
 
+        transactionButton = new Button("Finish Transaction");
+        transactionButton.setDisable(true);
+        transactionButton.setOnAction(e -> addTransaction());
+        GridPane.setConstraints(transactionButton, 2, 1);
 //        scanIdButton = new Button("Add");
 //        GridPane.setConstraints(scanProductButton, 2, 0);
+
+        deleteSellButton = new Button("Delete");
+        GridPane.setConstraints(deleteSellButton, 0, 2);
+        deleteSellButton.setOnAction(e -> deleteSelling());
+        deleteSellButton.setDisable(true);
+
 
         TableColumn<Product, String> sellingIdColumn = new TableColumn<>("ID");
         sellingIdColumn.setMinWidth(200);
@@ -222,6 +239,14 @@ public class Retailer extends Visitor {
         sellingTable.setItems(sellProducts);
         sellingTable.getColumns().addAll(sellingIdColumn, sellingNameColumn, sellingPriceColumn, quantityColumn);
         sellingTable.setMaxHeight(200);
+        sellingTable.getSelectionModel().selectedItemProperty().addListener((value, oldValue, newValue) -> {
+            if(newValue != null) {
+                scanProductField.setText(sellingTable.getSelectionModel().getSelectedItem().getProductId());
+                substractSellButton.setDisable(false);
+                deleteSellButton.setDisable(false);
+                productTable.getSelectionModel().clearSelection();
+            }
+        });
         GridPane.setConstraints(sellingTable, 0, 3, 4, 1);
 
         total = new Label("Total : ");
@@ -231,6 +256,26 @@ public class Retailer extends Visitor {
         totalCount = 0.00;
         totalValue.setText(totalCount + "");
         GridPane.setConstraints(totalValue, 6,3);
+
+        HBox searchContainer = new HBox();
+        searchContainer.setPadding(new Insets(10));
+        searchContainer.setSpacing(10);
+
+        search = new Label("Search : ");
+        searchField = new TextField();
+        searchField.setPromptText("Insert Something");
+        searchField.setPrefWidth(200);
+        searchField.textProperty().addListener(e -> searchProduct());
+
+        searchType = new ComboBox<>();
+        searchType.getItems().addAll("ProductID", "Name");
+        searchType.getSelectionModel().select(1);
+        searchProductButton = new Button("Search");
+        searchProductButton.setOnAction(e -> searchProduct());
+
+        searchContainer.getChildren().addAll(search, searchField, searchType, searchProductButton);
+
+        GridPane.setConstraints(searchContainer, 0, 4, 4, 1);
 
         productTable = new TableView<>();
         productTable.setItems(getProducts());
@@ -248,14 +293,18 @@ public class Retailer extends Visitor {
 //                stockField.setText(productTable.getSelectionModel().getSelectedItem().getStock() + "");
 //                editProductButton.setDisable(false);
 //                deleteProductButton.setDisable(false);
+                        substractSellButton.setDisable(true);
+                        deleteSellButton.setDisable(true);
+                        sellingTable.getSelectionModel().clearSelection();
                     }
                 });
         GridPane.setConstraints(productTable, 0, 5, 4, 1);
 
 
         body.getChildren().addAll(scanProduct, transactionDate, scanProductField, scanProductButton,
-                scanId, scanIdField, total, totalValue,
-                sellingTable, productTable);
+                scanId, scanIdField, total, totalValue, deleteSellButton,
+                searchContainer,
+                sellingTable, productTable, substractSellButton, transactionButton);
 
         return body;
     }
@@ -389,14 +438,133 @@ public class Retailer extends Visitor {
     }
 
     public void addTransaction() {
+        long ms = 0;
         try {
+            String myDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-mm-dd HH:mm:ss"));
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd HH:mm:ss");
+            java.util.Date date = sdf.parse(myDate);
+            ms = date.getTime();
+        } catch (Exception e) {
+            DialogBox.alertBox("Warning", e + "");
+        }
+        try {
+            // put verification for ID availability
             cn = MySqlConnect.connectDB();
-            String sql = "INSERT INTO ";
-            pst = cn.prepareStatement(sql);
 
+            String sqlTransaction = "INSERT INTO transaction VALUES(?,?,?)";
+            pst = cn.prepareStatement(sqlTransaction);
+            pst.setString(1, ms + "");
+            pst.setString(2, totalValue.getText());
+            pst.setDate(3, Date.valueOf(transactionDate.getText()));
+            pst.executeUpdate();
+
+            String sqlDo = "INSERT INTO do VALUES(?,?)";
+            pst = cn.prepareStatement(sqlDo);
+            pst.setString(1, ms + "");
+            pst.setString(2, scanIdField.getText());
+            pst.executeUpdate();
+
+            for(int i=0; i<sellingTable.getItems().size(); i++) {
+                String productId = sellingTable.getItems().get(i).getProductId();
+                int quantity = sellingTable.getItems().get(i).getStock();
+                String sqlSelling = "INSERT INTO have VALUES(?,?,?)";
+                pst = cn.prepareStatement(sqlSelling);
+                pst.setString(1, ms + "");
+                pst.setString(2, productId);
+                pst.setInt(3, quantity);
+                pst.executeUpdate();
+
+                String sqlUpdateProduct = "UPDATE product SET stock=stock-? WHERE productId = ?";
+                pst = cn.prepareStatement(sqlUpdateProduct);
+                pst.setInt(1, quantity);
+                pst.setString(2, productId);
+                pst.executeUpdate();
+            }
+            productTable.setItems(getProducts());
+            DialogBox.alertBox("Success", "Transaction Complete");
         } catch (SQLException e) {
             DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
+        } catch (Exception e) {
+            DialogBox.alertBox("Warning", e + "");
+        } finally {
+            try {
+                if (rs != null) {
+                    rs.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "rs");
+            }
+            try {
+                if (st != null) {
+                    st.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "st");
+            }
+            try {
+                if (pst != null) {
+                    pst.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "st");
+            }
+            try {
+                if (cn != null) {
+                    cn.close();
+                }
+            } catch (Exception e) {
+                DialogBox.alertBox("Error", e + "cn");
+            }
         }
+    }
+
+    private void countTotal() {
+        totalCount = 0.00;
+        for(int i=0; i<sellingTable.getItems().size(); i++) {
+            double subTotal = (sellingTable.getItems().get(i).getPrice() * sellingTable.getItems().get(i).getStock());
+            totalCount += subTotal;
+        }
+        totalValue.setText(totalCount + "");
+    }
+
+    public void deleteSelling() {
+        int index = sellingTable.getSelectionModel().getSelectedIndex();
+        for(int i=0; i<productTable.getItems().size(); i++) {
+            if(productTable.getItems().get(i).getProductId().equals(sellingTable.getItems().get(index).getProductId())) {
+                productTable.getItems().get(i).setStock(productTable.getItems().get(i).getStock() + sellingTable.getItems().get(index).getStock());
+            }
+        }
+        sellingTable.getItems().remove(index);
+        if(sellingTable.getItems().size() <= 0) {
+            transactionButton.setDisable(true);
+        }
+        countTotal();
+        productTable.refresh();
+        deleteSellButton.setDisable(true);
+        substractSellButton.setDisable(true);
+        sellingTable.getSelectionModel().clearSelection();
+    }
+
+    public void substractSelling() {
+        int index = sellingTable.getSelectionModel().getSelectedIndex();
+        for(int i=0; i<productTable.getItems().size(); i++) {
+            if(productTable.getItems().get(i).getProductId().equals(sellingTable.getItems().get(index).getProductId())) {
+                productTable.getItems().get(i).setStock(productTable.getItems().get(i).getStock() + 1);
+            }
+        }
+        sellingTable.getItems().get(index).setStock(sellingTable.getItems().get(index).getStock() - 1);
+        if(sellingTable.getItems().get(index).getStock() <= 0) {
+            sellingTable.getItems().remove(index);
+            if(sellingTable.getItems().size() <= 0) {
+                transactionButton.setDisable(true);
+            }
+            deleteSellButton.setDisable(true);
+            substractSellButton.setDisable(true);
+            sellingTable.getSelectionModel().clearSelection();
+        }
+        countTotal();
+        productTable.refresh();
+        sellingTable.refresh();
     }
 
     public void addSelling() {
@@ -408,9 +576,6 @@ public class Retailer extends Visitor {
                     "AND own.companyId = company.companyId) " +
                     "AND (product.productId = ? " +
                     "AND company.companyId = ?)";
-//            String sql = "SELECT COUNT(productId)" +
-//                    "FROM product,company,own" +
-//                    "WHERE productId?";
             pst = cn.prepareStatement(sql);
             pst.setString(1, scanProductField.getText());
             pst.setString(2, company.getCompanyId());
@@ -439,12 +604,8 @@ public class Retailer extends Visitor {
             } else {
                 DialogBox.alertBox("Warning", "No Product Found");
             }
-            totalCount = 0.00;
-            for(int i=0; i<sellingTable.getItems().size(); i++) {
-                double subTotal = (sellingTable.getItems().get(i).getPrice() * sellingTable.getItems().get(i).getStock());
-                totalCount += subTotal;
-            }
-            totalValue.setText(totalCount + "");
+            countTotal();
+            transactionButton.setDisable(false);
             productTable.refresh();
             sellingTable.refresh();
         } catch (SQLException e) {
@@ -620,77 +781,98 @@ public class Retailer extends Visitor {
     }
 
     public void searchProduct() {
-        products = FXCollections.observableArrayList();
-        try {
-            String sql;
-            cn = MySqlConnect.connectDB();
-            if(searchType.getSelectionModel().getSelectedItem() == "Name") {
-                sql = "SELECT * " +
-                        "FROM product, company, own " +
-                        "WHERE product.productId = own.productId " +
-                        "AND own.companyId = company.companyId " +
-                        "AND company.companyId = ? " +
-                        "AND product.name LIKE ?";
-            } else {
-                sql = "SELECT * " +
-                        "FROM product, company, own " +
-                        "WHERE product.productId = own.productId " +
-                        "AND own.companyId = company.companyId " +
-                        "AND company.companyId = ? " +
-                        "AND product.productid LIKE ?";
-            }
-                //            if(searchType.getSelectionModel().getSelectedItem() == "productID") {}
-//                sql = "SELECT * FROM product, company, own WHERE product.productId = own.productId AND own.companyId = company.companyId AND company.companyId = ? AND product.productid LIKE ?";
-//            }
-                pst = cn.prepareStatement(sql);
-//            pst.setString(2, searchType.getSelectionModel().getSelectedItem());
-                pst.setString(1, company.getCompanyId());
-                pst.setString(2, "%" + searchField.getText() + "%");
-                rs = pst.executeQuery();
-
-//            int i = 0;
-//            }
-            while(rs.next()) {
-                products.add(new Product(rs.getString(1), rs.getString(2), rs.getDouble(3), rs.getInt(4)));
-//                selectionBox.getItems().add(lectures.get(i).getLectureId() + " - " + lectures.get(i).getTitle());
-//                i++;
-            }
-            productTable.setItems(products);
-        } catch (SQLException e) {
-            DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
-        } catch (Exception e) {
-            DialogBox.alertBox("Warning", e + "");
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
+        ObservableList<Product> searchProduct = FXCollections.observableArrayList();
+        if(searchType.getSelectionModel().getSelectedItem().equals("Name")){
+            String name = searchField.getText().toLowerCase();
+            for(int i=0; i<products.size(); i++) {
+                if(products.get(i).getName().toLowerCase().contains(name)) {
+                    searchProduct.add(products.get(i));
                 }
-            } catch (Exception e) {
-                DialogBox.alertBox("Error", e + "rs");
             }
-            try {
-                if(st != null) {
-                    st.close();
+        } else {
+            String id = searchField.getText().toLowerCase();
+            for(int i=0; i<products.size(); i++) {
+                if(products.get(i).getProductId().toLowerCase().contains(id)) {
+                    searchProduct.add(products.get(i));
                 }
-            } catch (Exception e) {
-                DialogBox.alertBox("Error", e + "st");
-            }
-            try {
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (Exception e) {
-                DialogBox.alertBox("Error", e + "st");
-            }
-            try {
-                if(cn != null) {
-                    cn.close();
-                }
-            } catch (Exception e) {
-                DialogBox.alertBox("Error", e + "cn");
             }
         }
+        productTable.setItems(searchProduct);
     }
+
+    // Database search method, no longer needed
+//    public void searchProduct() {
+//        products = FXCollections.observableArrayList();
+//        try {
+//            String sql;
+//            cn = MySqlConnect.connectDB();
+//            if(searchType.getSelectionModel().getSelectedItem() == "Name") {
+//                sql = "SELECT * " +
+//                        "FROM product, company, own " +
+//                        "WHERE product.productId = own.productId " +
+//                        "AND own.companyId = company.companyId " +
+//                        "AND company.companyId = ? " +
+//                        "AND product.name LIKE ?";
+//            } else {
+//                sql = "SELECT * " +
+//                        "FROM product, company, own " +
+//                        "WHERE product.productId = own.productId " +
+//                        "AND own.companyId = company.companyId " +
+//                        "AND company.companyId = ? " +
+//                        "AND product.productid LIKE ?";
+//            }
+//                //            if(searchType.getSelectionModel().getSelectedItem() == "productID") {}
+////                sql = "SELECT * FROM product, company, own WHERE product.productId = own.productId AND own.companyId = company.companyId AND company.companyId = ? AND product.productid LIKE ?";
+////            }
+//                pst = cn.prepareStatement(sql);
+////            pst.setString(2, searchType.getSelectionModel().getSelectedItem());
+//                pst.setString(1, company.getCompanyId());
+//                pst.setString(2, "%" + searchField.getText() + "%");
+//                rs = pst.executeQuery();
+//
+////            int i = 0;
+////            }
+//            while(rs.next()) {
+//                products.add(new Product(rs.getString(1), rs.getString(2), rs.getDouble(3), rs.getInt(4)));
+////                selectionBox.getItems().add(lectures.get(i).getLectureId() + " - " + lectures.get(i).getTitle());
+////                i++;
+//            }
+//            productTable.setItems(products);
+//        } catch (SQLException e) {
+//            DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
+//        } catch (Exception e) {
+//            DialogBox.alertBox("Warning", e + "");
+//        } finally {
+//            try {
+//                if(rs != null) {
+//                    rs.close();
+//                }
+//            } catch (Exception e) {
+//                DialogBox.alertBox("Error", e + "rs");
+//            }
+//            try {
+//                if(st != null) {
+//                    st.close();
+//                }
+//            } catch (Exception e) {
+//                DialogBox.alertBox("Error", e + "st");
+//            }
+//            try {
+//                if(pst != null) {
+//                    pst.close();
+//                }
+//            } catch (Exception e) {
+//                DialogBox.alertBox("Error", e + "st");
+//            }
+//            try {
+//                if(cn != null) {
+//                    cn.close();
+//                }
+//            } catch (Exception e) {
+//                DialogBox.alertBox("Error", e + "cn");
+//            }
+//        }
+//    }
 
     public void saveProduct() {
         if(isEmpty()) {
