@@ -5,6 +5,7 @@ import com.conference.DialogBox;
 import com.conference.MySqlConnect;
 import com.conference.company.Product;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -184,6 +185,12 @@ public class Retailer extends Visitor {
         scanIdField = new TextField();
         scanIdField.setPromptText("Scan Customer ID");
         GridPane.setConstraints(scanIdField, 1, 1);
+        scanIdField.textProperty().addListener(e -> {
+            if (scanIdField.getText().length() >= 7) {
+                addTransaction();
+                Platform.runLater(() -> scanIdField.clear());
+            }
+        });
 
         transactionButton = new Button("Finish Transaction");
         transactionButton.setDisable(true);
@@ -247,6 +254,7 @@ public class Retailer extends Visitor {
                 productTable.getSelectionModel().clearSelection();
             }
         });
+
         GridPane.setConstraints(sellingTable, 0, 3, 4, 1);
 
         total = new Label("Total : ");
@@ -438,82 +446,94 @@ public class Retailer extends Visitor {
     }
 
     public void addTransaction() {
-        long ms = 0;
-        try {
-            String myDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-mm-dd HH:mm:ss"));
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd HH:mm:ss");
-            java.util.Date date = sdf.parse(myDate);
-            ms = date.getTime();
-        } catch (Exception e) {
-            DialogBox.alertBox("Warning", e + "");
-        }
-        try {
-            // put verification for ID availability
-            cn = MySqlConnect.connectDB();
-
-            String sqlTransaction = "INSERT INTO transaction VALUES(?,?,?)";
-            pst = cn.prepareStatement(sqlTransaction);
-            pst.setString(1, ms + "");
-            pst.setString(2, totalValue.getText());
-            pst.setDate(3, Date.valueOf(transactionDate.getText()));
-            pst.executeUpdate();
-
-            String sqlDo = "INSERT INTO do VALUES(?,?)";
-            pst = cn.prepareStatement(sqlDo);
-            pst.setString(1, ms + "");
-            pst.setString(2, scanIdField.getText());
-            pst.executeUpdate();
-
-            for(int i=0; i<sellingTable.getItems().size(); i++) {
-                String productId = sellingTable.getItems().get(i).getProductId();
-                int quantity = sellingTable.getItems().get(i).getStock();
-                String sqlSelling = "INSERT INTO have VALUES(?,?,?)";
-                pst = cn.prepareStatement(sqlSelling);
-                pst.setString(1, ms + "");
-                pst.setString(2, productId);
-                pst.setInt(3, quantity);
-                pst.executeUpdate();
-
-                String sqlUpdateProduct = "UPDATE product SET stock=stock-? WHERE productId = ?";
-                pst = cn.prepareStatement(sqlUpdateProduct);
-                pst.setInt(1, quantity);
-                pst.setString(2, productId);
-                pst.executeUpdate();
-            }
-            productTable.setItems(getProducts());
-            DialogBox.alertBox("Success", "Transaction Complete");
-        } catch (SQLException e) {
-            DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
-        } catch (Exception e) {
-            DialogBox.alertBox("Warning", e + "");
-        } finally {
+        if (sellingTable.getItems().size() <= 0) {
+            DialogBox.alertBox("Warning", "No Item found");
+        } else {
+            long ms = 0;
             try {
-                if (rs != null) {
-                    rs.close();
-                }
+                String myDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-mm-dd HH:mm:ss"));
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd HH:mm:ss");
+                java.util.Date date = sdf.parse(myDate);
+                ms = date.getTime();
             } catch (Exception e) {
-                DialogBox.alertBox("Error", e + "rs");
+                DialogBox.alertBox("Warning", e + "");
             }
             try {
-                if (st != null) {
-                    st.close();
+                cn = MySqlConnect.connectDB();
+
+                String sqlCheckId = "SELECT * FROM member WHERE memberId = ?";
+                pst = cn.prepareStatement(sqlCheckId);
+                pst.setString(1, scanIdField.getText());
+                rs = pst.executeQuery();
+
+                if (rs.next()) {
+                    String sqlTransaction = "INSERT INTO transaction VALUES(?,?,?)";
+                    pst = cn.prepareStatement(sqlTransaction);
+                    pst.setString(1, ms + "");
+                    pst.setString(2, totalValue.getText());
+                    pst.setDate(3, Date.valueOf(transactionDate.getText()));
+                    pst.executeUpdate();
+
+                    String sqlDo = "INSERT INTO do VALUES(?,?)";
+                    pst = cn.prepareStatement(sqlDo);
+                    pst.setString(1, ms + "");
+                    pst.setString(2, scanIdField.getText());
+                    pst.executeUpdate();
+
+                    for (int i = 0; i < sellingTable.getItems().size(); i++) {
+                        String productId = sellingTable.getItems().get(i).getProductId();
+                        int quantity = sellingTable.getItems().get(i).getStock();
+                        String sqlSelling = "INSERT INTO have VALUES(?,?,?)";
+                        pst = cn.prepareStatement(sqlSelling);
+                        pst.setString(1, ms + "");
+                        pst.setString(2, productId);
+                        pst.setInt(3, quantity);
+                        pst.executeUpdate();
+
+                        String sqlUpdateProduct = "UPDATE product SET stock=stock-? WHERE productId = ?";
+                        pst = cn.prepareStatement(sqlUpdateProduct);
+                        pst.setInt(1, quantity);
+                        pst.setString(2, productId);
+                        pst.executeUpdate();
+                    }
+                    productTable.setItems(getProducts());
+                    DialogBox.alertBox("Success", "Transaction Complete");
+                } else {
+                    DialogBox.alertBox("Warning", "ID not found");
                 }
+            } catch (SQLException e) {
+                DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
             } catch (Exception e) {
-                DialogBox.alertBox("Error", e + "st");
-            }
-            try {
-                if (pst != null) {
-                    pst.close();
+                DialogBox.alertBox("Warning", e + "");
+            } finally {
+                try {
+                    if (rs != null) {
+                        rs.close();
+                    }
+                } catch (Exception e) {
+                    DialogBox.alertBox("Error", e + "rs");
                 }
-            } catch (Exception e) {
-                DialogBox.alertBox("Error", e + "st");
-            }
-            try {
-                if (cn != null) {
-                    cn.close();
+                try {
+                    if (st != null) {
+                        st.close();
+                    }
+                } catch (Exception e) {
+                    DialogBox.alertBox("Error", e + "st");
                 }
-            } catch (Exception e) {
-                DialogBox.alertBox("Error", e + "cn");
+                try {
+                    if (pst != null) {
+                        pst.close();
+                    }
+                } catch (Exception e) {
+                    DialogBox.alertBox("Error", e + "st");
+                }
+                try {
+                    if (cn != null) {
+                        cn.close();
+                    }
+                } catch (Exception e) {
+                    DialogBox.alertBox("Error", e + "cn");
+                }
             }
         }
     }
@@ -585,29 +605,54 @@ public class Retailer extends Visitor {
                         rs.getDouble(3), 1);
                 boolean scanned = false;
                 int scannedIndex = 0;
+                boolean noStock = false;
+                int productIndex = 0;
                 for (int i = 0; i < sellProducts.size(); i++) {
+                    // check if the newly get product object equally the same with the one on the selling view
                     if (sellProducts.get(i).getProductId().equals(product.getProductId())) {
                         scanned = true;
                         scannedIndex = i;
                     }
                 }
-                if (scanned) {
-                    sellProducts.get(scannedIndex).setStock(sellProducts.get(scannedIndex).getStock() + 1);
-                } else {
-                    sellProducts.add(product);
-                }
+
                 for(int i = 0; i < products.size(); i++) {
+                    // decrease the product Id that have the same value with the newly created object
                     if(products.get(i).getProductId().equals(product.getProductId())) {
-                        products.get(i).setStock(products.get(i).getStock() - 1);
+                        // only decrement when stock is more than 0
+//                        if(products.get(i).getStock() > 0) {
+//                            products.get(i).setStock(products.get(i).getStock() - 1);
+//                        }
+                        productIndex = i;
                     }
                 }
+
+                // scanned and have a stock
+                // else -> not scanned /
+                if (scanned && products.get(productIndex).getStock() > 0) {
+                        sellProducts.get(scannedIndex).setStock(sellProducts.get(scannedIndex).getStock() + 1);
+                        products.get(productIndex).setStock(products.get(productIndex).getStock() - 1);
+
+                } else if (!scanned && products.get(productIndex).getStock() > 0) {
+
+                        sellProducts.add(product);
+                        products.get(productIndex).setStock(products.get(productIndex).getStock() - 1);
+                } else {
+                    DialogBox.alertBox("Warning", "Product is Empty");
+                }
+
             } else {
                 DialogBox.alertBox("Warning", "No Product Found");
             }
             countTotal();
-            transactionButton.setDisable(false);
             productTable.refresh();
             sellingTable.refresh();
+            // enable transaction button
+            transactionButton.setDisable(false);
+            // if selling table is empty
+            if(sellingTable.getItems().size() <= 0) {
+                // disable transaction button
+                transactionButton.setDisable(true);
+            }
         } catch (SQLException e) {
             DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
         } catch (Exception e) {
@@ -930,7 +975,6 @@ public class Retailer extends Visitor {
             }
         }
     }
-
 
     private boolean isEmpty() {
         if(productNameField.getText().isEmpty()) {
