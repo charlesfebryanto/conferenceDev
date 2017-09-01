@@ -3,6 +3,8 @@ package com.conference;
 import javafx.application.Platform;
 import javafx.scene.control.*;
 
+import java.util.Optional;
+
 public class DialogBox {
     public static void alertBox(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -10,6 +12,20 @@ public class DialogBox {
         alert.setHeaderText(null);
         alert.setContentText(message);
         alert.showAndWait();
+    }
+
+    public static boolean confirmationBox(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if(result.get() == ButtonType.OK) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     private static void stringOnly(TextField fieldName) {
@@ -26,16 +42,19 @@ public class DialogBox {
         }
     }
 
-    public static void numberOnly(TextField fieldName) {
+    public static boolean numberOnly(TextField fieldName) {
         try {
             if(fieldName.getText().length() > 0) {
                 if (Integer.parseInt(fieldName.getText().charAt(fieldName.getText().length() - 1) + "") > 0
                         || Integer.parseInt(fieldName.getText().charAt(fieldName.getText().length() - 1) + "") < 0) {
+                    return true;
                 }
             }
+            return false;
         } catch (NumberFormatException nfe) {
             DialogBox.alertBox("Error", "No Letter allowed.");
             Platform.runLater(() -> fieldName.clear());
+            return false;
         }
     }
 

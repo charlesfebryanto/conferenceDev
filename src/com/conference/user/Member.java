@@ -7,7 +7,9 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
-import java.util.Date;
+import java.sql.Date;
+
+import static com.conference.Conference.loginScene;
 
 public class Member {
     private int userId;
@@ -38,7 +40,7 @@ public class Member {
         Menu profile = new Menu("Profile");
 //        MenuItem edit = new MenuItem("Edit");
         MenuItem logout = new MenuItem("Log out");
-        logout.setOnAction(e -> logout());
+        logout.setOnAction(e -> logout(stage, loginScene));
         profile.getItems().addAll(logout);
 
         Menu view = new Menu("View");
@@ -71,13 +73,35 @@ public class Member {
         layout.setCenter(body);
         layout.setTop(menuBar);
 
-        Scene scene = new Scene(layout, 600, 400);
+        Scene scene = new Scene(layout, 1024, 768);
         stage.setTitle("Login As : Visitor");
         stage.setScene(scene);
     }
 
-    public void logout() {
-        System.out.println("Log out");
+    public GridPane mainView() {
+
+        GridPane body = new GridPane();
+        body.setVgap(10);
+        body.setHgap(10);
+        body.setPadding(new Insets(10));
+
+        Label loginId = new Label("ID : " + getUserId());
+        GridPane.setConstraints(loginId, 0, 0);
+
+        Label loginName = new Label("Name : " + getFirstName() + " " + getLastName());
+        GridPane.setConstraints(loginName, 0, 1);
+
+        Label loginLevel = new Label("Login Level : " + getPosition());
+        GridPane.setConstraints(loginLevel, 0, 2);
+
+//        Label loginDOB = new Label("Login Level : " + getDob());
+
+        body.getChildren().addAll(loginId, loginName, loginLevel);
+        return body;
+    }
+
+    public void logout(Stage stage, Scene scene) {
+        stage.setScene(scene);
     }
 
     // get and set

@@ -19,7 +19,7 @@ import java.sql.*;
 
 import static com.conference.Conference.loginScene;
 
-public class Receptionist extends Visitor {
+public class Receptionist extends Member {
     private Connection cn = null;
     private PreparedStatement pst = null;
     private Statement st = null;
@@ -41,6 +41,7 @@ public class Receptionist extends Visitor {
         super(userId, firstName, lastName, gender, contactNumber, address, dob, position);
     }
 
+    @Override
     public void view(Stage stage) {
         BorderPane layout = new BorderPane();
 
@@ -64,31 +65,9 @@ public class Receptionist extends Visitor {
         layout.setCenter(mainView());
         layout.setTop(menuBar);
 
-        Scene scene = new Scene(layout, 800, 480);
+        Scene scene = new Scene(layout, 1024, 768);
         stage.setTitle("Login As : Receptionist");
         stage.setScene(scene);
-    }
-
-    private GridPane mainView() {
-
-        GridPane body = new GridPane();
-        body.setVgap(10);
-        body.setHgap(10);
-        body.setPadding(new Insets(10));
-
-        Label loginId = new Label("ID : " + getUserId());
-        GridPane.setConstraints(loginId, 0, 0);
-
-        Label loginName = new Label("Name : " + getFirstName() + " " + getLastName());
-        GridPane.setConstraints(loginName, 0, 1);
-
-        Label loginLevel = new Label("Login Level : " + getPosition());
-        GridPane.setConstraints(loginLevel, 0, 2);
-
-//        Label loginDOB = new Label("Login Level : " + getDob());
-
-        body.getChildren().addAll(loginId, loginName, loginLevel);
-        return body;
     }
 
     private GridPane registerVisitorView() {
@@ -170,14 +149,8 @@ public class Receptionist extends Visitor {
         memberIdField.setPromptText("Scan Member ID");
         GridPane.setConstraints(memberIdField, 1, 6);
         memberIdField.textProperty().addListener(e -> {
-//            DialogBox.numberOnly(memberIdField);
-//            DialogBox.numberOnly(memberIdField, 7,
-//                    "Warning", "Member ID is Too Long");
-            if(memberIdField.getText().length() >= 7) {
-                insertVisitor();
-//                Platform.runLater(() -> memberIdField.clear());
-            } else {
-                DialogBox.numberOnly(memberIdField);
+            if(DialogBox.numberOnly(memberIdField) && memberIdField.getText().length() >= 7) {
+                    insertVisitor();
             }
         });
 
@@ -273,9 +246,19 @@ public class Receptionist extends Visitor {
                 pst.setInt(8, 0);
                 pst.executeUpdate();
                 DialogBox.alertBox("Success", "Visitor " + firstNameField.getText() + " " + lastNameField.getText() + " Successfuly added.");
+                Platform.runLater(() -> {
+                    firstNameField.clear();
+                    lastNameField.clear();
+                    maleRadio.setSelected(true);
+                    contactField.clear();
+                    addressField.clear();
+                    dobPicker.getEditor().clear();
+                    memberIdField.clear();
+                });
             } catch (MySQLIntegrityConstraintViolationException e) {
                 if (e.getErrorCode() == 1062) {
                     DialogBox.alertBox("Error", memberIdField.getText() + " Already Registered.");
+                    Platform.runLater(() -> memberIdField.clear());
                 }
             } catch (Exception e) {
                 DialogBox.alertBox("Error", e + "");
@@ -309,16 +292,7 @@ public class Receptionist extends Visitor {
                     DialogBox.alertBox("Error", e + "cn");
                 }
             }
-            Platform.runLater(() -> {
-                firstNameField.clear();
-                lastNameField.clear();
-                maleRadio.setSelected(true);
-                contactField.clear();
-                addressField.clear();
-                dobPicker.getEditor().clear();
-            });
         }
-        Platform.runLater(() -> memberIdField.clear());
     }
 
     private void insertEngagement() {

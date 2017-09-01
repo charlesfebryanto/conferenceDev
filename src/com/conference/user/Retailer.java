@@ -27,7 +27,7 @@ import java.time.format.DateTimeFormatter;
 import static com.conference.Conference.loginScene;
 //import java.util.Date;
 
-public class Retailer extends Visitor {
+public class Retailer extends Member {
     private Connection cn = null;
     private PreparedStatement pst = null;
     private Statement st = null;
@@ -80,12 +80,13 @@ public class Retailer extends Visitor {
         layout.setCenter(mainView());
         layout.setTop(menuBar);
 
-        Scene scene = new Scene(layout, 800, 480);
+        Scene scene = new Scene(layout, 1024, 768);
         stage.setTitle("Login As : Retailer | Company : " + company.getCompanyId());
         stage.setScene(scene);
     }
 
-    private GridPane mainView() {
+    @Override
+    public GridPane mainView() {
         GridPane body = new GridPane();
         body.setVgap(10);
         body.setHgap(10);
@@ -188,7 +189,14 @@ public class Retailer extends Visitor {
         scanIdField.textProperty().addListener(e -> {
             if (scanIdField.getText().length() >= 7) {
                 addTransaction();
-                Platform.runLater(() -> scanIdField.clear());
+                Platform.runLater(() -> {
+                    scanProductField.clear();
+                    scanIdField.clear();
+                    sellingTable.getItems().remove(0, sellingTable.getItems().size());
+                });
+                totalCount = 0;
+                totalValue.setText(totalCount + "");
+                transactionButton.setDisable(true);
             }
         });
 
@@ -212,8 +220,6 @@ public class Retailer extends Visitor {
         TableColumn<Product, String> sellingNameColumn = new TableColumn<>("Name");
         sellingNameColumn.setMinWidth(200);
         sellingNameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-
-
 
 
         TableColumn<Product, Double> sellingPriceColumn = new TableColumn<>("Price");
@@ -449,90 +455,94 @@ public class Retailer extends Visitor {
         if (sellingTable.getItems().size() <= 0) {
             DialogBox.alertBox("Warning", "No Item found");
         } else {
-            long ms = 0;
-            try {
-                String myDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-mm-dd HH:mm:ss"));
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd HH:mm:ss");
-                java.util.Date date = sdf.parse(myDate);
-                ms = date.getTime();
-            } catch (Exception e) {
-                DialogBox.alertBox("Warning", e + "");
-            }
-            try {
-                cn = MySqlConnect.connectDB();
+            boolean confirm = DialogBox.confirmationBox("Warning", "Finish the Transaction ?");
+            if(confirm) {
 
-                String sqlCheckId = "SELECT * FROM member WHERE memberId = ?";
-                pst = cn.prepareStatement(sqlCheckId);
-                pst.setString(1, scanIdField.getText());
-                rs = pst.executeQuery();
+                long ms = 0;
+                try {
+                    String myDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-mm-dd HH:mm:ss"));
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-mm-dd HH:mm:ss");
+                    java.util.Date date = sdf.parse(myDate);
+                    ms = date.getTime();
+                } catch (Exception e) {
+                    DialogBox.alertBox("Warning", e + "");
+                }
+                try {
+                    cn = MySqlConnect.connectDB();
 
-                if (rs.next()) {
-                    String sqlTransaction = "INSERT INTO transaction VALUES(?,?,?)";
-                    pst = cn.prepareStatement(sqlTransaction);
-                    pst.setString(1, ms + "");
-                    pst.setString(2, totalValue.getText());
-                    pst.setDate(3, Date.valueOf(transactionDate.getText()));
-                    pst.executeUpdate();
+                    String sqlCheckId = "SELECT * FROM member WHERE memberId = ?";
+                    pst = cn.prepareStatement(sqlCheckId);
+                    pst.setString(1, scanIdField.getText());
+                    rs = pst.executeQuery();
 
-                    String sqlDo = "INSERT INTO do VALUES(?,?)";
-                    pst = cn.prepareStatement(sqlDo);
-                    pst.setString(1, ms + "");
-                    pst.setString(2, scanIdField.getText());
-                    pst.executeUpdate();
-
-                    for (int i = 0; i < sellingTable.getItems().size(); i++) {
-                        String productId = sellingTable.getItems().get(i).getProductId();
-                        int quantity = sellingTable.getItems().get(i).getStock();
-                        String sqlSelling = "INSERT INTO have VALUES(?,?,?)";
-                        pst = cn.prepareStatement(sqlSelling);
+                    if (rs.next()) {
+                        String sqlTransaction = "INSERT INTO transaction VALUES(?,?,?)";
+                        pst = cn.prepareStatement(sqlTransaction);
                         pst.setString(1, ms + "");
-                        pst.setString(2, productId);
-                        pst.setInt(3, quantity);
+                        pst.setString(2, totalValue.getText());
+                        pst.setDate(3, Date.valueOf(transactionDate.getText()));
                         pst.executeUpdate();
 
-                        String sqlUpdateProduct = "UPDATE product SET stock=stock-? WHERE productId = ?";
-                        pst = cn.prepareStatement(sqlUpdateProduct);
-                        pst.setInt(1, quantity);
-                        pst.setString(2, productId);
+                        String sqlDo = "INSERT INTO do VALUES(?,?)";
+                        pst = cn.prepareStatement(sqlDo);
+                        pst.setString(1, ms + "");
+                        pst.setString(2, scanIdField.getText());
                         pst.executeUpdate();
+
+                        for (int i = 0; i < sellingTable.getItems().size(); i++) {
+                            String productId = sellingTable.getItems().get(i).getProductId();
+                            int quantity = sellingTable.getItems().get(i).getStock();
+                            String sqlSelling = "INSERT INTO have VALUES(?,?,?)";
+                            pst = cn.prepareStatement(sqlSelling);
+                            pst.setString(1, ms + "");
+                            pst.setString(2, productId);
+                            pst.setInt(3, quantity);
+                            pst.executeUpdate();
+
+                            String sqlUpdateProduct = "UPDATE product SET stock=stock-? WHERE productId = ?";
+                            pst = cn.prepareStatement(sqlUpdateProduct);
+                            pst.setInt(1, quantity);
+                            pst.setString(2, productId);
+                            pst.executeUpdate();
+                        }
+                        productTable.setItems(getProducts());
+                        DialogBox.alertBox("Success", "Transaction Complete");
+                    } else {
+                        DialogBox.alertBox("Warning", "ID not found");
                     }
-                    productTable.setItems(getProducts());
-                    DialogBox.alertBox("Success", "Transaction Complete");
-                } else {
-                    DialogBox.alertBox("Warning", "ID not found");
-                }
-            } catch (SQLException e) {
-                DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
-            } catch (Exception e) {
-                DialogBox.alertBox("Warning", e + "");
-            } finally {
-                try {
-                    if (rs != null) {
-                        rs.close();
-                    }
+                } catch (SQLException e) {
+                    DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
                 } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "rs");
-                }
-                try {
-                    if (st != null) {
-                        st.close();
+                    DialogBox.alertBox("Warning", e + "");
+                } finally {
+                    try {
+                        if (rs != null) {
+                            rs.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "rs");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "st");
-                }
-                try {
-                    if (pst != null) {
-                        pst.close();
+                    try {
+                        if (st != null) {
+                            st.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "st");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "st");
-                }
-                try {
-                    if (cn != null) {
-                        cn.close();
+                    try {
+                        if (pst != null) {
+                            pst.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "st");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "cn");
+                    try {
+                        if (cn != null) {
+                            cn.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "cn");
+                    }
                 }
             }
         }
@@ -703,50 +713,54 @@ public class Retailer extends Visitor {
         if(isEmpty()) {
             DialogBox.alertBox("Warning", "Empty Field is not Allowed");
         } else {
-            try {
-                cn = MySqlConnect.connectDB();
-                String sql = "UPDATE product set name = ?, price = ?, stock = ? WHERE productId = ?";
-                pst = cn.prepareStatement(sql);
-                pst.setString(1, productNameField.getText());
-                pst.setDouble(2, Double.parseDouble(priceField.getText()));
-                pst.setInt(3, Integer.parseInt(stockField.getText()));
-                pst.setString(4, productIdField.getText());
-                pst.executeUpdate();
-                DialogBox.alertBox("Success", "Product " + productIdField.getText() + " Updated");
-                addProduct();
-                productTable.setItems(getProducts());
-            } catch (SQLException e) {
-                DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
-            } catch (Exception e) {
-                DialogBox.alertBox("Warning", e + "");
-            } finally {
+            boolean confirm = DialogBox.confirmationBox("Warning", "Are you sure you want to edit " +
+                    productNameField.getText() + " ? It will affect the related product");
+            if(confirm) {
                 try {
-                    if (rs != null) {
-                        rs.close();
-                    }
+                    cn = MySqlConnect.connectDB();
+                    String sql = "UPDATE product set name = ?, price = ?, stock = ? WHERE productId = ?";
+                    pst = cn.prepareStatement(sql);
+                    pst.setString(1, productNameField.getText());
+                    pst.setDouble(2, Double.parseDouble(priceField.getText()));
+                    pst.setInt(3, Integer.parseInt(stockField.getText()));
+                    pst.setString(4, productIdField.getText());
+                    pst.executeUpdate();
+                    DialogBox.alertBox("Success", "Product " + productIdField.getText() + " Updated");
+                    addProduct();
+                    productTable.setItems(getProducts());
+                } catch (SQLException e) {
+                    DialogBox.alertBox("Warning", e.getErrorCode() + " : " + e.getMessage());
                 } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "rs");
-                }
-                try {
-                    if (st != null) {
-                        st.close();
+                    DialogBox.alertBox("Warning", e + "");
+                } finally {
+                    try {
+                        if (rs != null) {
+                            rs.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "rs");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "st");
-                }
-                try {
-                    if (pst != null) {
-                        pst.close();
+                    try {
+                        if (st != null) {
+                            st.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "st");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "st");
-                }
-                try {
-                    if (cn != null) {
-                        cn.close();
+                    try {
+                        if (pst != null) {
+                            pst.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "st");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "cn");
+                    try {
+                        if (cn != null) {
+                            cn.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "cn");
+                    }
                 }
             }
         }
@@ -757,69 +771,73 @@ public class Retailer extends Visitor {
             // this will never happen
             DialogBox.alertBox("Warning", "ID is needed to Delete, cannot be empty");
         } else {
-            try {
-                cn = MySqlConnect.connectDB();
-                String sqlCount = "SELECT COUNT(have.productId) FROM have WHERE have.productId = ?";
-                pst = cn.prepareStatement(sqlCount);
-                pst.setString(1, productIdField.getText());
-                rs = pst.executeQuery();
-
-                if(rs.next()) {
-                    if (rs.getInt(1) > 0) {
-                        DialogBox.alertBox("Warning", "Cannot delete " + productNameField.getText() +
-                                ", Product already have a record.");
-                    } else {
-
-                        String sqlOwn = "DELETE FROM own WHERE productId = ? AND companyId = ?";
-                        pst = cn.prepareStatement(sqlOwn);
-                        pst.setString(1, productIdField.getText());
-                        pst.setString(2, company.getCompanyId());
-                        pst.executeUpdate();
-
-                        String sqlProduct = "DELETE FROM product WHERE productId = ?";
-                        pst = cn.prepareStatement(sqlProduct);
-                        pst.setString(1, productIdField.getText());
-                        pst.executeUpdate();
-
-                        // set the items on productTable view using getProducts method to get the current data from database
-                        DialogBox.alertBox("Success", productNameField.getText() + " Deleted Successfully");
-                        addProduct();
-                        productTable.refresh();
-                        productTable.setItems(getProducts());
-                    }
-                }
-            } catch (SQLException e) {
-                DialogBox.alertBox("Warning", e.getErrorCode() + " :" + e.getMessage());
-            } catch(Exception e) {
-                DialogBox.alertBox("Warning", e + "");
-            } finally {
+            boolean confirm = DialogBox.confirmationBox("Warning", "Are you sure you want to delete " +
+                    productNameField.getText() + " ? Product that already have a record cannot be deleted");
+            if (confirm) {
                 try {
-                    if(rs != null) {
-                        rs.close();
+                    cn = MySqlConnect.connectDB();
+                    String sqlCount = "SELECT COUNT(have.productId) FROM have WHERE have.productId = ?";
+                    pst = cn.prepareStatement(sqlCount);
+                    pst.setString(1, productIdField.getText());
+                    rs = pst.executeQuery();
+
+                    if (rs.next()) {
+                        if (rs.getInt(1) > 0) {
+                            DialogBox.alertBox("Warning", "Cannot delete " + productNameField.getText() +
+                                    ", Product already have a record.");
+                        } else {
+
+                            String sqlOwn = "DELETE FROM own WHERE productId = ? AND companyId = ?";
+                            pst = cn.prepareStatement(sqlOwn);
+                            pst.setString(1, productIdField.getText());
+                            pst.setString(2, company.getCompanyId());
+                            pst.executeUpdate();
+
+                            String sqlProduct = "DELETE FROM product WHERE productId = ?";
+                            pst = cn.prepareStatement(sqlProduct);
+                            pst.setString(1, productIdField.getText());
+                            pst.executeUpdate();
+
+                            // set the items on productTable view using getProducts method to get the current data from database
+                            DialogBox.alertBox("Success", productNameField.getText() + " Deleted Successfully");
+                            addProduct();
+                            productTable.refresh();
+                            productTable.setItems(getProducts());
+                        }
                     }
+                } catch (SQLException e) {
+                    DialogBox.alertBox("Warning", e.getErrorCode() + " :" + e.getMessage());
                 } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "rs");
-                }
-                try {
-                    if(st != null) {
-                        st.close();
+                    DialogBox.alertBox("Warning", e + "");
+                } finally {
+                    try {
+                        if (rs != null) {
+                            rs.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "rs");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "st");
-                }
-                try {
-                    if(pst != null) {
-                        pst.close();
+                    try {
+                        if (st != null) {
+                            st.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "st");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "st");
-                }
-                try {
-                    if(cn != null) {
-                        cn.close();
+                    try {
+                        if (pst != null) {
+                            pst.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "st");
                     }
-                } catch (Exception e) {
-                    DialogBox.alertBox("Error", e + "cn");
+                    try {
+                        if (cn != null) {
+                            cn.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "cn");
+                    }
                 }
             }
         }

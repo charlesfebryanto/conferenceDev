@@ -1,8 +1,8 @@
 package com.conference;
 
 import com.conference.user.Administrator;
+import com.conference.user.Member;
 import com.conference.user.Retailer;
-import com.conference.user.Visitor;
 import com.conference.user.Receptionist;
 
 import javafx.application.Application;
@@ -75,10 +75,8 @@ public class Conference extends Application {
                 Platform.runLater(() -> userId.clear());
                 DialogBox.alertBox("Warning", "Connection Error");
             } else {
-                if (userId.getText().length() >= 7) {
+                if(DialogBox.numberOnly(userId) && userId.getText().length() >= 7) {
                     login();
-                } else {
-                    DialogBox.numberOnly(userId);
                 }
             }
         });
@@ -108,7 +106,7 @@ public class Conference extends Application {
         layout.setCenter(body);
         layout.setBottom(footer);
 
-        scene = new Scene(layout, 800, 480);
+        scene = new Scene(layout, 1024, 768);
 
         stage.setTitle("Login");
         stage.setScene(scene);
@@ -158,7 +156,7 @@ public class Conference extends Application {
                             rs.getInt("position"));
                     loggedIn.view(stage);
                 } else {
-                    Visitor loggedIn = new Visitor(rs.getInt("memberId"),
+                    Member loggedIn = new Member(rs.getInt("memberId"),
                             rs.getString("firstName"),
                             rs.getString("lastName"),
                             rs.getString("gender"),
