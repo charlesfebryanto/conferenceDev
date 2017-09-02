@@ -4,7 +4,7 @@ import com.conference.DialogBox;
 import com.conference.MySqlConnect;
 import com.conference.company.Product;
 import com.mysql.jdbc.exceptions.jdbc4.MySQLIntegrityConstraintViolationException;
-import com.sun.tools.doclets.formats.html.SourceToHTMLConverter;
+//import com.sun.tools.doclets.formats.html.SourceToHTMLConverter;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -18,6 +18,7 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 
 import java.sql.*;
+import java.time.LocalDate;
 
 import static com.conference.Conference.loginScene;
 
@@ -162,6 +163,10 @@ public class Administrator extends Member {
         GridPane.setConstraints(addStaff, 1, 8);
         addStaff.setOnAction(e -> insertStaff());
 
+        Button deleteStaff = new Button("Delete Member");
+        GridPane.setConstraints(deleteStaff, 2, 8);
+        deleteStaff.setOnAction(e -> deleteStaff());
+
         TableColumn<Member, Integer> staffIdColumn = new TableColumn<>("ID");
         staffIdColumn.setMinWidth(200);
         staffIdColumn.setCellValueFactory(new PropertyValueFactory<>("userId"));
@@ -208,7 +213,8 @@ public class Administrator extends Member {
 
         body.getChildren().addAll(staffFirstName, staffLastName, gender, staffContactNo, staffAddress, dob);
         body.getChildren().addAll(staffFirstNameField, staffLastNameField, maleRadio, femaleRadio, staffContactField,
-                staffAddressField, dobPicker, staffId, staffIdField, addStaff, position, positionBox, memberTable);
+                staffAddressField, dobPicker, staffId, staffIdField, addStaff, deleteStaff,
+                position, positionBox, memberTable);
 
         return body;
     }
@@ -317,6 +323,78 @@ public class Administrator extends Member {
             return true;
         } else {
             return false;
+        }
+    }
+
+    public void deleteStaff() {
+        if(staffIdField.getText().isEmpty()) {
+            // this will never happen
+            DialogBox.alertBox("Warning", "ID is needed to Delete, cannot be empty");
+        } else {
+            boolean confirm = DialogBox.confirmationBox("Warning", "Are you sure you want to delete " +
+                    staffFirstNameField.getText() + " " + staffLastNameField.getText() + " ? " +
+                    "It is not recommended to remove record");
+            if (confirm) {
+                try {
+                    cn = MySqlConnect.connectDB();
+                    String sqlSelect = "SELECT * " +
+                            "FROM member " +
+                            "WHERE memberId = ? AND position > 0";
+                    pst = cn.prepareStatement(sqlSelect);
+                    pst.setString(1, staffIdField.getText());
+                    rs = pst.executeQuery();
+                    if(rs.next()) {
+                        String sqlDelete = "DELETE FROM member WHERE memberId = ?";
+                        pst = cn.prepareStatement(sqlDelete);
+                        pst.setString(1, staffIdField.getText());
+                        pst.executeUpdate();
+
+                        for (int i=0; i<members.size(); i++) {
+                            if(members.get(i).getUserId() == Integer.parseInt(staffIdField.getText())) {
+                                members.remove(i);
+                            }
+                        }
+                        
+                        memberTable.refresh();
+                    } else {
+                        DialogBox.alertBox("Warning", "Delete Fail. " + staffIdField.getText() +
+                                " Not a Staff");
+                    }
+                } catch (SQLException e) {
+                    DialogBox.alertBox("Warning", e.getErrorCode() + " :" + e.getMessage());
+                } catch (Exception e) {
+                    DialogBox.alertBox("Warning", e + "");
+                } finally {
+                    try {
+                        if (rs != null) {
+                            rs.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "rs");
+                    }
+                    try {
+                        if (st != null) {
+                            st.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "st");
+                    }
+                    try {
+                        if (pst != null) {
+                            pst.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "st");
+                    }
+                    try {
+                        if (cn != null) {
+                            cn.close();
+                        }
+                    } catch (Exception e) {
+                        DialogBox.alertBox("Error", e + "cn");
+                    }
+                }
+            }
         }
     }
 
